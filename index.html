@@ -1,0 +1,1022 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BitDev CRM | Placas NFC + QR</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<style>
+:root{--bg:#071019;--panel:#0e1b29;--panel2:#122438;--text:#edf5fb;--muted:#9aafc2;--blue:#00bfff;--blue2:#0d47a1;--line:#20364b;--good:#42d392;--warn:#ffc857;--bad:#ff7474}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.45 Inter,system-ui,-apple-system,Segoe UI,sans-serif;-webkit-font-smoothing:antialiased}
+button,input,select,textarea{font:inherit}
+button{cursor:pointer;border:1px solid var(--line);border-radius:10px;padding:10px 14px;background:var(--panel2);color:var(--text);min-height:42px;display:inline-flex;align-items:center;justify-content:center;transition:background .2s,border-color .2s}
+button:active{transform:scale(0.98)}
+button.primary{background:var(--blue);border-color:var(--blue);color:#04111b;font-weight:750}
+button.ghost{background:transparent}
+button.danger{color:#ffadad;border-color:#663a44;background:#2d171b}
+input,select,textarea{width:100%;background:#08131f;color:var(--text);border:1px solid var(--line);border-radius:9px;padding:11px 12px;outline:none;font-size:16px}
+input:focus,select:focus,textarea:focus{border-color:var(--blue)}
+label{display:grid;gap:6px;color:var(--muted);font-size:13px}
+
+.app{display:grid;grid-template-columns:250px 1fr;min-height:100vh}
+.sidebar{display:flex;flex-direction:column;padding:24px 16px;background:#08131f;border-right:1px solid var(--line)}
+.sidebar-header{display:flex;flex-direction:column}
+.brand{display:flex;gap:11px;align-items:center;margin:0 8px 24px}
+.logo{display:grid;place-items:center;width:42px;height:42px;border-radius:12px;background:var(--blue);color:#03121b;font-weight:900;font-size:19px;flex-shrink:0}
+.brand strong{display:block;letter-spacing:.2px;font-size:16px}
+.brand small{color:var(--muted);font-size:12px}
+.nav{display:grid;gap:7px}
+.nav button{text-align:left;background:transparent;border-color:transparent;color:var(--muted);border-radius:10px;justify-content:flex-start}
+.nav button.active,.nav button:hover{background:#10283b;border-color:#1c4762;color:white}
+.sidebar-note{margin:24px 8px 0;color:var(--muted);font-size:12px;line-height:1.4}
+.sidebar-footer{margin-top:auto;padding-top:20px;border-top:1px solid var(--line)}
+.user-badge{display:flex;align-items:center;justify-content:space-between;background:var(--panel);padding:10px 12px;border-radius:10px;border:1px solid var(--line);font-size:12px;gap:8px}
+.user-badge span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:130px;color:var(--text)}
+
+main{padding:28px;min-width:0;max-width:1600px;width:100%;margin:auto}
+.top{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:24px}
+.eyebrow{color:var(--blue);font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:1.4px}
+.top h1{font-size:clamp(24px,2.8vw,32px);margin:4px 0}
+.sub{color:var(--muted);margin:0;font-size:14px}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+
+.cards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-bottom:22px}
+.stat,.panel{background:var(--panel);border:1px solid var(--line);border-radius:16px}
+.stat{padding:18px}
+.stat span{display:block;color:var(--muted);font-size:13px}
+.stat strong{display:block;font-size:26px;margin-top:8px}
+.stat small{color:var(--muted);font-size:12px}
+.panel{padding:20px;margin-bottom:20px}
+.panel-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap}
+.panel h2{font-size:17px;margin:0}
+
+.toolbar{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap}
+.filters{display:flex;gap:8px;flex-wrap:wrap;flex:1}
+.filters input,.filters select{max-width:260px}
+
+.table-wrap{overflow:auto}
+table{width:100%;border-collapse:collapse}
+th,td{text-align:left;padding:12px 10px;border-bottom:1px solid var(--line);vertical-align:middle}
+th{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.5px;font-weight:700}
+td small{display:block;color:var(--muted);margin-top:3px}
+.pill{display:inline-flex;align-items:center;border-radius:99px;padding:4px 9px;font-size:12px;font-weight:600;background:#1a2e40;color:#c9dbea}
+.pill.good{background:#123b32;color:#83edc1}
+.pill.warn{background:#45351a;color:#ffdc8a}
+.pill.bad{background:#45242a;color:#ffb0b0}
+.row-actions{display:flex;gap:6px;flex-wrap:wrap}
+.row-actions button{padding:6px 10px;font-size:12px;min-height:34px}
+
+.empty{padding:40px 15px;text-align:center;color:var(--muted)}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.full{grid-column:1/-1}
+.hint{font-size:12px;color:var(--muted);line-height:1.4}
+.toast{position:fixed;bottom:24px;right:24px;background:#123b32;border:1px solid #286e58;padding:14px 18px;border-radius:12px;display:none;z-index:300;max-width:min(420px,90vw);box-shadow:0 10px 30px #0008;font-weight:600}
+
+.modal-back{position:fixed;inset:0;background:#000a;display:none;align-items:center;justify-content:center;padding:16px;z-index:200;backdrop-filter:blur(4px)}
+.modal{width:min(760px,100%);max-height:92vh;overflow:auto;background:#0b1825;border:1px solid var(--line);border-radius:18px;padding:24px;box-shadow:0 24px 60px #000a}
+.modal h2{margin:0 0 18px;font-size:20px}
+.modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:20px}
+.hidden{display:none!important}
+.link{color:var(--blue);overflow-wrap:anywhere;text-decoration:none}
+.link:hover{text-decoration:underline}
+.notice{border:1px solid #4a3b1e;background:#282315;color:#ffe3a1;padding:14px;border-radius:12px;margin-bottom:18px;font-size:13px}
+
+/* Tela de Login */
+.auth-wrap{position:fixed;inset:0;background:radial-gradient(circle at 50% 20%,#0e273c 0%,var(--bg) 70%);display:flex;align-items:center;justify-content:center;padding:16px;z-index:100}
+.auth-card{background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:32px 24px;width:min(400px,100%);box-shadow:0 20px 50px #0008}
+.auth-card .logo{margin:0 auto 16px;width:54px;height:54px;font-size:24px}
+.auth-card h2{text-align:center;margin:0 0 6px;font-size:22px}
+.auth-card p.sub{text-align:center;margin:0 0 24px;font-size:13px}
+.auth-error{background:#45242a;border:1px solid #75333d;color:#ffb0b0;padding:12px;border-radius:10px;font-size:13px;margin-top:14px;text-align:center;line-height:1.4}
+.auth-notice{background:#192e40;border:1px solid #204b6d;color:#b2d8f7;padding:12px;border-radius:10px;font-size:12px;margin-top:14px;line-height:1.4}
+
+/* ==================================================================== */
+/* OTIMIZAÇÃO TOTAL RESPONSIVA (TABLETS E CELULARES)                    */
+/* ==================================================================== */
+@media(max-width:1050px){
+  .cards{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .app{grid-template-columns:210px 1fr}
+  .sidebar{padding:20px 12px}
+  main{padding:20px}
+}
+
+@media(max-width:850px){
+  .app{display:block;padding-bottom:20px}
+  
+  /* Topbar Mobile Fixa no Topo */
+  .sidebar{
+    position:sticky;
+    top:0;
+    z-index:90;
+    padding:10px 14px;
+    border-right:none;
+    border-bottom:1px solid var(--line);
+    background:rgba(8, 19, 31, 0.96);
+    backdrop-filter:blur(12px);
+    -webkit-backdrop-filter:blur(12px);
+  }
+  .sidebar-header{
+    flex-direction:row;
+    justify-content:space-between;
+    align-items:center;
+    width:100%;
+    margin-bottom:10px;
+  }
+  .brand{margin:0}
+  .brand .logo{width:36px;height:36px;font-size:17px;border-radius:10px}
+  .brand strong{font-size:15px}
+  .sidebar-note{display:none}
+  .sidebar-footer{
+    margin:0;
+    padding:0;
+    border:none;
+  }
+  .user-badge{
+    padding:5px 8px;
+    font-size:11px;
+    border-radius:8px;
+  }
+  .user-badge span{max-width:110px}
+
+  /* Abas de Navegação Deslizáveis (Pills) */
+  .nav{
+    display:flex;
+    overflow-x:auto;
+    gap:6px;
+    padding-bottom:4px;
+    -webkit-overflow-scrolling:touch;
+    scrollbar-width:none;
+  }
+  .nav::-webkit-scrollbar{display:none}
+  .nav button{
+    white-space:nowrap;
+    padding:8px 14px;
+    font-size:13px;
+    border-radius:99px;
+    background:var(--panel);
+    border:1px solid var(--line);
+    flex-shrink:0;
+    min-height:36px;
+  }
+  .nav button.active{
+    background:var(--blue);
+    color:#04111b;
+    border-color:var(--blue);
+    font-weight:750;
+  }
+
+  main{padding:14px}
+  .top{flex-direction:column;align-items:stretch;gap:12px;margin-bottom:18px}
+  .top h1{font-size:24px}
+  .top .actions{display:flex;width:100%;gap:8px}
+  .top .actions button{flex:1;text-align:center;justify-content:center}
+
+  /* Cartões em 2 colunas compactas */
+  .cards{gap:10px;grid-template-columns:repeat(2,1fr);margin-bottom:16px}
+  .stat{padding:14px}
+  .stat strong{font-size:21px;margin-top:4px}
+  .stat span{font-size:12px}
+
+  .grid2{grid-template-columns:1fr;gap:14px}
+  .toolbar{flex-direction:column;align-items:stretch;gap:10px}
+  .filters{flex-direction:column;width:100%;gap:8px}
+  .filters input,.filters select{max-width:none;width:100%}
+  .toolbar > button,.toolbar > .primary{width:100%;justify-content:center}
+
+  /* TRANSFORMAÇÃO DE TABELAS EM CARDS MOBILE INTERATIVOS */
+  .table-wrap{overflow:visible}
+  .table-wrap table{min-width:0!important;width:100%!important;border-collapse:separate;border-spacing:0}
+  .table-wrap thead{display:none}
+  .table-wrap tbody,.table-wrap tr,.table-wrap td{display:block;width:100%}
+  .table-wrap tr{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:14px;
+    padding:14px 16px;
+    margin-bottom:12px;
+    box-shadow:0 4px 16px rgba(0,0,0,0.25);
+  }
+  .table-wrap td{
+    padding:6px 0;
+    border-bottom:none;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    font-size:14px;
+    gap:10px;
+  }
+  .table-wrap td::before{
+    content:attr(data-label);
+    color:var(--muted);
+    font-size:12px;
+    font-weight:600;
+    text-transform:uppercase;
+    letter-spacing:.3px;
+    flex-shrink:0;
+  }
+  /* Primeiro campo vira o cabeçalho do card */
+  .table-wrap td:first-child{
+    display:block;
+    padding-bottom:10px;
+    margin-bottom:8px;
+    border-bottom:1px solid var(--line);
+    font-size:16px;
+  }
+  .table-wrap td:first-child::before{display:none}
+  /* Último campo (ações) vira barra inferior */
+  .table-wrap td:last-child{
+    display:block;
+    padding-top:12px;
+    margin-top:10px;
+    border-top:1px solid var(--line);
+  }
+  .table-wrap td:last-child::before{display:none}
+  .table-wrap .row-actions{
+    display:flex;
+    gap:8px;
+    width:100%;
+  }
+  .table-wrap .row-actions button{
+    flex:1;
+    padding:10px 8px;
+    font-size:13px;
+    min-height:38px;
+    justify-content:center;
+  }
+
+  /* MODAL EM ESTILO BOTTOM SHEET PARA MOBILE */
+  .modal-back{
+    padding:0;
+    align-items:flex-end;
+  }
+  .modal{
+    width:100%;
+    max-height:88vh;
+    border-radius:22px 22px 0 0;
+    padding:20px 16px 30px;
+    border-bottom:none;
+  }
+  .form-grid{grid-template-columns:1fr;gap:12px}
+  .full{grid-column:auto}
+  .modal-actions{
+    position:sticky;
+    bottom:0;
+    background:#0b1825;
+    padding-top:14px;
+    margin-top:14px;
+    border-top:1px solid var(--line);
+  }
+  .modal-actions button{
+    flex:1;
+    padding:12px;
+    font-size:15px;
+    min-height:46px;
+  }
+
+  .toast{
+    left:16px;
+    right:16px;
+    bottom:16px;
+    max-width:none;
+    text-align:center;
+  }
+}
+</style>
+</head>
+<body>
+
+<!-- Tela de Autenticação Segura -->
+<div id="authScreen" class="auth-wrap">
+  <div class="auth-card">
+    <div class="logo">B</div>
+    <h2>BitDev CRM</h2>
+    <p class="sub">Acesso restrito ao administrador</p>
+    <form id="loginForm">
+      <div style="display:grid;gap:14px;">
+        <label>E-mail de acesso
+          <input type="email" id="loginEmail" required placeholder="admin@bitdev.com.br" autocomplete="username">
+        </label>
+        <label>Senha
+          <input type="password" id="loginPassword" required placeholder="••••••••" autocomplete="current-password">
+        </label>
+        <button type="submit" class="primary" id="loginBtn" style="margin-top:8px;">Entrar no CRM</button>
+      </div>
+    </form>
+    <div id="authError" class="auth-error hidden"></div>
+    <div id="configNotice" class="auth-notice hidden">
+      <b>Configuração necessária:</b> Preencha suas chaves em <code>config.js</code> para conectar com o Supabase.
+    </div>
+  </div>
+</div>
+
+<!-- Aplicação CRM -->
+<div class="app" id="appRoot" style="display:none;">
+<aside class="sidebar">
+  <div class="sidebar-header">
+    <div class="brand"><div class="logo">B</div><div><strong>BitDev CRM</strong><small>Gestão de placas</small></div></div>
+    <div class="sidebar-footer">
+      <div class="user-badge">
+        <span id="userBadgeEmail">admin@bitdev</span>
+        <button id="logoutBtn" class="ghost" style="padding:4px 8px;font-size:11px;">Sair</button>
+      </div>
+    </div>
+  </div>
+  <nav class="nav" id="nav">
+    <button class="active" data-page="dashboard">▦ Visão geral</button>
+    <button data-page="leads">◎ Clientes</button>
+    <button data-page="plates">▣ Placas</button>
+    <button data-page="sales">＄ Vendas</button>
+    <button data-page="history">◷ Histórico</button>
+    <button data-page="settings">⚙ Ajustes</button>
+  </nav>
+  <div class="sidebar-note">CRM Nuvem Conectado<br>Sessão segura verificada.</div>
+</aside>
+<main>
+  <header class="top">
+    <div><div class="eyebrow">BitDev · Operação comercial</div><h1 id="pageTitle">Visão geral</h1><p class="sub" id="pageSub">Acompanhe clientes, placas, vendas e resultados.</p></div>
+    <div class="actions"><button class="ghost" id="exportBtn">Exportar dados</button><button class="primary" id="quickAdd">+ Novo cadastro</button></div>
+  </header>
+  <div class="notice" id="migrationNotice" style="display:none;background:#182e22;border-color:#2a573e;color:#b6ecd2;">
+    <strong>Dados locais encontrados:</strong> Detectamos registros salvos neste navegador. <button id="btnStartMigration" class="primary" style="padding:4px 10px;font-size:12px;margin-left:8px;">Transferir para a Nuvem</button>
+  </div>
+  <section id="view"></section>
+</main>
+</div>
+
+<div class="modal-back" id="modalBack"><div class="modal"><h2 id="modalTitle">Novo cadastro</h2><form id="modalForm"><div id="modalFields" class="form-grid"></div><div class="modal-actions"><button type="button" id="cancelModal">Cancelar</button><button class="primary" type="submit">Salvar cadastro</button></div></form></div></div>
+<div class="toast" id="toast"></div>
+
+<script>
+const KEY='bitdev_crm_mvp_v1';
+const blank=()=>({leads:[],plates:[],sales:[],history:[],settings:{businessName:'BitDev',currency:'BRL'}});
+let db=loadDB(), page='dashboard', modalType='', editingId=null;
+let supabaseClient = null, currentUser = null;
+
+// Inicialização do cliente Supabase a partir do config.js
+function cleanSupabaseUrl(url){
+  if(!url) return '';
+  return url.trim().replace(/\/rest\/v1\/?$/i, '').replace(/\/+$/, '');
+}
+
+function initSupabase(){
+  if(typeof SUPABASE_CONFIG !== 'undefined' && SUPABASE_CONFIG.url && !SUPABASE_CONFIG.url.includes('SUA_SUPABASE_URL')){
+    try{
+      const cleanUrl = cleanSupabaseUrl(SUPABASE_CONFIG.url);
+      supabaseClient = supabase.createClient(cleanUrl, SUPABASE_CONFIG.anonKey);
+      document.querySelector('#configNotice').classList.add('hidden');
+      return true;
+    }catch(err){
+      console.error('Erro ao conectar cliente Supabase:', err);
+    }
+  }
+  document.querySelector('#configNotice').classList.remove('hidden');
+  return false;
+}
+
+// Controle de Autenticação e Sessão
+async function checkAuthSession(){
+  if(!initSupabase()){
+    return;
+  }
+  const { data: { session } } = await supabaseClient.auth.getSession();
+  if(session && session.user){
+    await validateAdminAndEnter(session.user);
+  } else {
+    showLogin();
+  }
+}
+
+async function validateAdminAndEnter(user){
+  // Valida com a função segura do banco se o usuário é o administrador autorizado
+  const { data: isAdmin, error } = await supabaseClient.rpc('is_admin');
+  if(error){
+    console.error('Erro ao consultar is_admin:', error);
+    await supabaseClient.auth.signOut();
+    showAuthError('Erro ao verificar permissão: ' + (error.message || 'Verifique se o script SQL foi executado.'));
+    showLogin();
+    return;
+  }
+  if(!isAdmin){
+    await supabaseClient.auth.signOut();
+    showAuthError('Acesso bloqueado: O usuário (' + esc(user.email) + ') ainda não foi cadastrado na tabela admin_users no Supabase.');
+    showLogin();
+    return;
+  }
+  currentUser = user;
+  document.querySelector('#userBadgeEmail').textContent = user.email || 'Admin';
+  document.querySelector('#authScreen').style.display = 'none';
+  document.querySelector('#appRoot').style.display = 'grid';
+  checkLocalDataForMigration();
+  await loadCloudData();
+}
+
+function showLogin(){
+  document.querySelector('#authScreen').style.display = 'flex';
+  document.querySelector('#appRoot').style.display = 'none';
+}
+
+function showAuthError(msg){
+  const el = document.querySelector('#authError');
+  el.textContent = msg;
+  el.classList.remove('hidden');
+}
+
+document.querySelector('#loginForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const email = document.querySelector('#loginEmail').value.trim();
+  const password = document.querySelector('#loginPassword').value;
+  const btn = document.querySelector('#loginBtn');
+
+  if(!initSupabase()){
+    showAuthError('Insira sua URL e Chave Anon no arquivo config.js antes de entrar.');
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Autenticando...';
+  document.querySelector('#authError').classList.add('hidden');
+
+  try{
+    const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+    if(error){
+      let msg = 'E-mail ou senha incorretos.';
+      if(error.message && error.message.toLowerCase().includes('email not confirmed')){
+        msg = 'E-mail não confirmado. No Supabase (Authentication > Users), confirme seu usuário.';
+      } else if(error.message && error.message.toLowerCase().includes('invalid login credentials')){
+        msg = 'E-mail ou senha incorretos. Verifique os dados digitados.';
+      } else if(error.message){
+        msg = error.message;
+      }
+      showAuthError(msg);
+      btn.disabled = false;
+      btn.textContent = 'Entrar no CRM';
+      return;
+    }
+    await validateAdminAndEnter(data.user);
+  }catch(err){
+    showAuthError('Erro de conexão ao autenticar: ' + (err.message || ''));
+  }finally{
+    btn.disabled = false;
+    btn.textContent = 'Entrar no CRM';
+  }
+});
+
+document.querySelector('#logoutBtn').addEventListener('click', async () => {
+  if(supabaseClient){
+    await supabaseClient.auth.signOut();
+  }
+  currentUser = null;
+  showLogin();
+  toast('Sessão encerrada com segurança.');
+});
+
+// Verificação de dados locais para a etapa de migração
+function checkLocalDataForMigration(){
+  const raw = localStorage.getItem(KEY);
+  if(raw){
+    try{
+      const parsed = JSON.parse(raw);
+      if((parsed.leads && parsed.leads.length) || (parsed.plates && parsed.plates.length) || (parsed.sales && parsed.sales.length)){
+        const notice = document.querySelector('#migrationNotice');
+        notice.style.display = 'block';
+        document.querySelector('#btnStartMigration').onclick = runMigrationToCloud;
+      }
+    }catch(e){}
+  }
+}
+
+// Migração Segura: do LocalStorage para o Supabase
+async function runMigrationToCloud(){
+  const raw = localStorage.getItem(KEY);
+  if(!raw) return;
+  const parsed = JSON.parse(raw);
+  const btn = document.querySelector('#btnStartMigration');
+
+  if(!confirm('Deseja transferir todos os dados deste navegador para o banco na nuvem Supabase? Os registros ficarão salvos e sincronizados permanentemente.')){
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Migrando para a nuvem...';
+
+  try{
+    const leadIdMap = {};
+    const plateIdMap = {};
+
+    // 1. Migra Leads
+    if(parsed.leads && parsed.leads.length){
+      for(const l of parsed.leads){
+        const newLeadId = crypto.randomUUID();
+        leadIdMap[l.id] = newLeadId;
+        const { error } = await supabaseClient.from('leads').insert({
+          id: newLeadId,
+          name: l.name,
+          contact_name: l.contact || null,
+          phone: l.phone || null,
+          email: l.email || null,
+          segment: l.segment || null,
+          neighborhood: l.neighborhood || null,
+          address: l.address || null,
+          stage: ['Novo lead','Contato realizado','Proposta enviada','Em negociação','Ganho','Perdido'].includes(l.stage) ? l.stage : 'Novo lead',
+          next_contact: l.nextContact || null,
+          google_url: l.googleUrl || null,
+          notes: l.notes || null,
+          created_at: l.createdAt ? new Date(l.createdAt).toISOString() : new Date().toISOString()
+        });
+        if(error) console.error('Erro ao migrar lead:', l.name, error);
+      }
+    }
+
+    // 2. Migra Placas
+    if(parsed.plates && parsed.plates.length){
+      for(const p of parsed.plates){
+        const newPlateId = crypto.randomUUID();
+        plateIdMap[p.id] = newPlateId;
+        const mappedLeadId = leadIdMap[p.leadId] || p.leadId;
+        const slug = p.permanentSlug || p.code.toLowerCase().replace(/[^a-z0-9]/g, '-');
+        const { error } = await supabaseClient.from('plates').insert({
+          id: newPlateId,
+          code: p.code,
+          lead_id: mappedLeadId,
+          kind: p.kind || 'NFC + QR Code',
+          permanent_slug: slug,
+          permanent_url: p.permanentUrl || null,
+          destination_url: p.destination || null,
+          status: ['Em produção','Ativa','Inativa'].includes(p.status) ? p.status : 'Em produção',
+          sold_date: p.soldDate || null,
+          scans_count: 0,
+          notes: p.notes || null,
+          created_at: p.createdAt ? new Date(p.createdAt).toISOString() : new Date().toISOString()
+        });
+        if(error) console.error('Erro ao migrar placa:', p.code, error);
+      }
+    }
+
+    // 3. Migra Vendas
+    if(parsed.sales && parsed.sales.length){
+      for(const s of parsed.sales){
+        const mappedLeadId = leadIdMap[s.leadId] || s.leadId;
+        const mappedPlateId = s.plateId ? (plateIdMap[s.plateId] || s.plateId) : null;
+        const { error } = await supabaseClient.from('sales').insert({
+          id: crypto.randomUUID(),
+          lead_id: mappedLeadId,
+          plate_id: mappedPlateId,
+          sale_date: s.date || today(),
+          amount: Number(s.amount) || 0,
+          cost: Number(s.cost) || 0,
+          payment_status: ['Pendente','Parcial','Pago','Cancelada'].includes(s.payment) ? s.payment : 'Pendente',
+          payment_method: s.method || 'Pix',
+          notes: s.notes || null,
+          created_at: s.createdAt ? new Date(s.createdAt).toISOString() : new Date().toISOString()
+        });
+        if(error) console.error('Erro ao migrar venda:', error);
+      }
+    }
+
+    // 4. Migra Histórico Geral
+    if(parsed.history && parsed.history.length){
+      for(const h of parsed.history){
+        await supabaseClient.from('activity_history').insert({
+          id: crypto.randomUUID(),
+          action: h.action,
+          detail: h.detail,
+          created_at: h.date || new Date().toISOString()
+        });
+      }
+    }
+
+    // Registra log da migração no Supabase
+    await supabaseClient.from('activity_history').insert({
+      id: crypto.randomUUID(),
+      action: 'Migração Concluída',
+      detail: 'Dados transferidos do navegador local para o Supabase com sucesso.'
+    });
+
+    // Guarda backup de segurança no localStorage antes de limpar
+    localStorage.setItem(KEY + '_backup_migrado', raw);
+    localStorage.removeItem(KEY);
+
+    // Oculta o banner de migração
+    document.querySelector('#migrationNotice').style.display = 'none';
+
+    // Recarrega os dados já vindos diretamente da nuvem
+    await loadCloudData();
+    toast('Migração concluída com sucesso! Seus dados agora estão na nuvem.');
+  }catch(err){
+    console.error('Falha na migração:', err);
+    toast('Ocorreu um erro durante a migração. Verifique o console.');
+    btn.disabled = false;
+    btn.textContent = 'Transferir para a Nuvem';
+  }
+}
+
+// Carrega os dados direto do Supabase
+async function loadCloudData(){
+  if(!supabaseClient){
+    render();
+    return;
+  }
+  try{
+    const [leadsRes, platesRes, salesRes, histRes] = await Promise.all([
+      supabaseClient.from('leads').select('*').order('created_at', { ascending: false }),
+      supabaseClient.from('plates').select('*').is('deleted_at', null).order('created_at', { ascending: false }),
+      supabaseClient.from('sales').select('*').order('sale_date', { ascending: false }),
+      supabaseClient.from('activity_history').select('*').order('created_at', { ascending: false }).limit(50)
+    ]);
+
+    db.leads = (leadsRes.data || []).map(l => ({
+      id: l.id,
+      name: l.name,
+      contact: l.contact_name,
+      phone: l.phone,
+      email: l.email,
+      segment: l.segment,
+      neighborhood: l.neighborhood,
+      address: l.address,
+      stage: l.stage,
+      nextContact: l.next_contact,
+      googleUrl: l.google_url,
+      notes: l.notes,
+      createdAt: l.created_at
+    }));
+
+    db.plates = (platesRes.data || []).map(p => ({
+      id: p.id,
+      code: p.code,
+      leadId: p.lead_id,
+      kind: p.kind,
+      permanentSlug: p.permanent_slug,
+      permanentUrl: p.permanent_url,
+      destination: p.destination_url,
+      status: p.status,
+      soldDate: p.sold_date,
+      scansCount: p.scans_count || 0,
+      notes: p.notes,
+      createdAt: p.created_at
+    }));
+
+    db.sales = (salesRes.data || []).map(s => ({
+      id: s.id,
+      leadId: s.lead_id,
+      plateId: s.plate_id,
+      date: s.sale_date,
+      amount: s.amount,
+      cost: s.cost,
+      payment: s.payment_status,
+      method: s.payment_method,
+      notes: s.notes,
+      createdAt: s.created_at
+    }));
+
+    db.history = (histRes.data || []).map(h => ({
+      id: h.id,
+      action: h.action,
+      detail: h.detail,
+      date: h.created_at
+    }));
+
+    render();
+  }catch(err){
+    console.error('Erro ao carregar dados do Supabase:', err);
+    render();
+  }
+}
+
+// Funções da Interface do CRM
+function loadDB(){try{return {...blank(),...JSON.parse(localStorage.getItem(KEY)||'{}')}}catch{return blank()}}
+function saveDB(){localStorage.setItem(KEY,JSON.stringify(db))}
+function id(prefix){return prefix+'-'+Date.now().toString(36).toUpperCase()+'-'+Math.random().toString(36).slice(2,5).toUpperCase()}
+function esc(s=''){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function money(n){return new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(Number(n)||0)}
+function date(s){if(!s)return '—';let d=new Date(s+'T12:00:00');return isNaN(d)?s:d.toLocaleDateString('pt-BR')}
+function today(){return new Date().toISOString().slice(0,10)}
+function toast(msg){let t=document.querySelector('#toast');t.textContent=msg;t.style.display='block';setTimeout(()=>t.style.display='none',2600)}
+function log(action,detail){db.history.unshift({id:id('HIST'),date:new Date().toISOString(),action,detail});saveDB()}
+function leadName(leadId){return db.leads.find(x=>x.id===leadId)?.name||'Cliente não encontrado'}
+function statusPill(s){let cls=['Cliente','Ganho','Ativa','Pago'].includes(s)?'good':['Proposta enviada','Em negociação','Pendente','Em produção'].includes(s)?'warn':['Perdido','Inativa','Cancelada'].includes(s)?'bad':'';return `<span class="pill ${cls}">${esc(s||'—')}</span>`}
+function setPage(p){page=p;document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('active',b.dataset.page===p));render()}
+document.querySelector('#nav').addEventListener('click',e=>{let b=e.target.closest('button[data-page]');if(b)setPage(b.dataset.page)});
+document.querySelector('#quickAdd').onclick=()=>openCreateForPage();
+document.querySelector('#exportBtn').onclick=exportData;
+const titles={dashboard:['Visão geral','Acompanhe clientes, placas, vendas e resultados.'],leads:['Clientes e prospecção','Organize seus contatos e acompanhe cada oportunidade.'],plates:['Placas e links','Gerencie identificadores permanentes e destinos editáveis.'],sales:['Vendas e financeiro','Acompanhe faturamento, custos, lucro e pagamentos.'],history:['Histórico','Consulte alterações e ações registradas no CRM.'],settings:['Configurações','Ajustes locais e backup dos dados.']};
+function render(){let [t,s]=titles[page];document.querySelector('#pageTitle').textContent=t;document.querySelector('#pageSub').textContent=s;let v=document.querySelector('#view');v.innerHTML=({dashboard:dashboard,leads:leadsPage,plates:platesPage,sales:salesPage,history:historyPage,settings:settingsPage})[page]();wireView()}
+function dashboard(){
+ let active=db.plates.filter(p=>p.status==='Ativa').length, revenue=db.sales.reduce((a,s)=>a+(+s.amount||0),0), costs=db.sales.reduce((a,s)=>a+(+s.cost||0),0), pending=db.sales.filter(s=>s.payment!=='Pago').reduce((a,s)=>a+(+s.amount||0),0);
+ return `<div class="cards">
+ <div class="stat"><span>Clientes cadastrados</span><strong>${db.leads.length}</strong><small>Leads e clientes</small></div>
+ <div class="stat"><span>Placas ativas</span><strong>${active}</strong><small>Com redirecionamento ativo</small></div>
+ <div class="stat"><span>Vendas registradas</span><strong>${money(revenue)}</strong><small>Faturamento bruto</small></div>
+ <div class="stat"><span>Lucro estimado</span><strong>${money(revenue-costs)}</strong><small>Vendas menos custos</small></div></div>
+ <div class="grid2"><div class="panel"><div class="panel-head"><h2>Funil de prospecção</h2><button class="primary" data-action="add-lead">+ Cliente</button></div>
+ ${['Novo lead','Contato realizado','Proposta enviada','Em negociação','Ganho','Perdido'].map(st=>`<div class="toolbar" style="padding:9px 0;border-bottom:1px solid var(--line);margin-bottom:0"><span>${st}</span><strong>${db.leads.filter(l=>l.stage===st).length}</strong></div>`).join('')}</div>
+ <div class="panel"><div class="panel-head"><h2>Atenção necessária</h2></div>
+ <div class="toolbar" style="padding:9px 0;margin-bottom:0"><span>Pagamentos pendentes</span><strong>${money(pending)}</strong></div>
+ <div class="toolbar" style="padding:9px 0;margin-bottom:0"><span>Placas sem destino</span><strong>${db.plates.filter(p=>!p.destination).length}</strong></div>
+ <div class="toolbar" style="padding:9px 0;margin-bottom:0"><span>Próximos retornos vencidos</span><strong>${db.leads.filter(l=>l.nextContact&&l.nextContact<today()&&!['Ganho','Perdido'].includes(l.stage)).length}</strong></div>
+ <p class="hint" style="margin-top:10px">Os indicadores consideram os registros atuais do sistema.</p></div></div>
+ <div class="panel"><div class="panel-head"><h2>Atividade recente</h2><button data-page="history">Ver histórico</button></div>${db.history.length?`<div class="table-wrap"><table><thead><tr><th>Data</th><th>Ação</th><th>Detalhes</th></tr></thead><tbody>${db.history.slice(0,6).map(h=>`<tr><td data-label="Data">${new Date(h.date).toLocaleString('pt-BR')}</td><td data-label="Ação"><b>${esc(h.action)}</b></td><td data-label="Detalhes">${esc(h.detail)}</td></tr>`).join('')}</tbody></table></div>`:'<div class="empty">As ações registradas aparecerão aqui.</div>'}</div>`
+}
+function leadsPage(){return `<div class="panel"><div class="toolbar"><div class="filters"><input id="searchLead" placeholder="Buscar estabelecimento ou telefone"><select id="stageFilter"><option value="">Todos os estágios</option>${['Novo lead','Contato realizado','Proposta enviada','Em negociação','Ganho','Perdido'].map(s=>`<option>${s}</option>`).join('')}</select></div><button class="primary" data-action="add-lead">+ Cadastrar cliente</button></div><div id="leadsTable">${leadTable(db.leads)}</div></div>`}
+function leadTable(rows){
+  if(!rows.length)return '<div class="empty">Nenhum cliente cadastrado. Adicione seu primeiro prospecto.</div>';
+  return `<div class="table-wrap"><table><thead><tr><th>Estabelecimento</th><th>Contato</th><th>Segmento / bairro</th><th>Etapa</th><th>Próximo contato</th><th>Ações</th></tr></thead><tbody>${rows.map(l=>`<tr>
+    <td data-label="Estabelecimento"><b>${esc(l.name)}</b><small>${esc(l.address||'Endereço não informado')}</small></td>
+    <td data-label="Contato">${l.phone ? `<a href="tel:${esc(l.phone)}" class="link" style="font-weight:600;">${esc(l.phone)}</a>` : '—'}<small>${esc(l.contact||'')}</small></td>
+    <td data-label="Segmento / Bairro">${esc(l.segment||'—')}<small>${esc(l.neighborhood||'')}</small></td>
+    <td data-label="Etapa">${statusPill(l.stage)}</td>
+    <td data-label="Próximo retorno">${date(l.nextContact)}</td>
+    <td data-label="Ações"><div class="row-actions"><button data-action="edit-lead" data-id="${l.id}">Editar</button><button data-action="sale-from-lead" data-id="${l.id}">Registrar venda</button><button class="danger" data-action="delete-lead" data-id="${l.id}">Excluir</button></div></td>
+  </tr>`).join('')}</tbody></table></div>`;
+}
+function platesPage(){return `<div class="panel"><div class="toolbar"><div class="filters"><input id="searchPlate" placeholder="Buscar placa, cliente ou código"><select id="plateStatus"><option value="">Todos os status</option><option>Ativa</option><option>Inativa</option><option>Em produção</option></select></div><button class="primary" data-action="add-plate">+ Cadastrar placa</button></div><div id="platesTable">${plateTable(db.plates)}</div><p class="hint">O link permanente exibido é associado ao redirecionador do seu domínio configurado.</p></div>`}
+function plateTable(rows){
+  if(!rows.length)return '<div class="empty">Nenhuma placa cadastrada.</div>';
+  return `<div class="table-wrap"><table><thead><tr><th>Código / cliente</th><th>Link permanente (NFC/QR)</th><th>Destino atual</th><th>Status</th><th>Ações</th></tr></thead><tbody>${rows.map(p=>{
+    const permLink = p.permanentUrl || `go.html?p=${encodeURIComponent(p.permanentSlug || p.code.toLowerCase().replace(/[^a-z0-9]/g, '-'))}`;
+    return `<tr>
+      <td data-label="Código / Cliente">
+        <b>${esc(p.code)}</b>
+        <small>${esc(leadName(p.leadId))}</small>
+        <small style="color:var(--blue);font-weight:600;">👁 ${p.scansCount || 0} leitura(s)</small>
+      </td>
+      <td data-label="Link Permanente">
+        <a class="link" href="${esc(permLink)}" target="_blank" rel="noopener">${esc(permLink)}</a>
+        <small>${esc(p.kind||'NFC + QR Code')}</small>
+      </td>
+      <td data-label="Destino Atual">${p.destination ? `<a class="link" href="${esc(p.destination)}" target="_blank" rel="noopener">${esc(p.destination)}</a>` : '<span class="pill warn">Sem destino</span>'}</td>
+      <td data-label="Status">${statusPill(p.status)}</td>
+      <td data-label="Ações">
+        <div class="row-actions">
+          <button data-action="edit-destination" data-id="${p.id}">Editar link</button>
+          <button data-action="edit-plate" data-id="${p.id}">Editar placa</button>
+          <button class="danger" data-action="delete-plate" data-id="${p.id}">Desativar</button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('')}</tbody></table></div>`;
+}
+function salesPage(){let rev=db.sales.reduce((a,s)=>a+(+s.amount||0),0),cost=db.sales.reduce((a,s)=>a+(+s.cost||0),0),pending=db.sales.filter(s=>s.payment!=='Pago').reduce((a,s)=>a+(+s.amount||0),0);return `<div class="cards"><div class="stat"><span>Faturamento</span><strong>${money(rev)}</strong></div><div class="stat"><span>Custos</span><strong>${money(cost)}</strong></div><div class="stat"><span>Lucro estimado</span><strong>${money(rev-cost)}</strong></div><div class="stat"><span>A receber</span><strong>${money(pending)}</strong></div></div><div class="panel"><div class="panel-head"><h2>Vendas registradas</h2><button class="primary" data-action="add-sale">+ Registrar venda</button></div>${salesTable(db.sales)}</div>`}
+function salesTable(rows){
+  if(!rows.length)return '<div class="empty">Nenhuma venda registrada.</div>';
+  return `<div class="table-wrap"><table><thead><tr><th>Data / cliente</th><th>Placa</th><th>Venda</th><th>Custo</th><th>Lucro</th><th>Pagamento</th><th>Ações</th></tr></thead><tbody>${rows.map(s=>`<tr>
+    <td data-label="Data / Cliente">${date(s.date)}<small>${esc(leadName(s.leadId))}</small></td>
+    <td data-label="Placa">${esc(db.plates.find(p=>p.id===s.plateId)?.code||'—')}</td>
+    <td data-label="Venda">${money(s.amount)}</td>
+    <td data-label="Custo">${money(s.cost)}</td>
+    <td data-label="Lucro"><b>${money((+s.amount||0)-(+s.cost||0))}</b></td>
+    <td data-label="Pagamento">${statusPill(s.payment)}</td>
+    <td data-label="Ações"><div class="row-actions"><button data-action="edit-sale" data-id="${s.id}">Editar</button><button class="danger" data-action="delete-sale" data-id="${s.id}">Excluir</button></div></td>
+  </tr>`).join('')}</tbody></table></div>`;
+}
+function historyPage(){return `<div class="panel"><div class="panel-head"><h2>Registro de atividades</h2><button data-action="clear-history">Limpar histórico</button></div>${db.history.length?`<div class="table-wrap"><table><thead><tr><th>Data e hora</th><th>Ação</th><th>Detalhes</th></tr></thead><tbody>${db.history.map(h=>`<tr><td data-label="Data">${new Date(h.date).toLocaleString('pt-BR')}</td><td data-label="Ação"><b>${esc(h.action)}</b></td><td data-label="Detalhes">${esc(h.detail)}</td></tr>`).join('')}</tbody></table></div>`:'<div class="empty">Nenhuma atividade registrada.</div>'}</div>`}
+function settingsPage(){return `<div class="panel"><h2 style="margin-bottom:14px">Configurações e backup</h2><p class="sub">Faça exportações regulares dos dados em JSON ou confira o status de conexão.</p><div class="actions" style="margin-top:16px"><button class="primary" id="settingsExport">Baixar backup JSON</button><button id="settingsImport">Importar backup JSON</button><input type="file" id="importFile" accept=".json,application/json" class="hidden"></div><hr style="border-color:var(--line);margin:22px 0"><h2>Identidade visual</h2><p class="hint">BitDev · azul #00BFFF · azul escuro #0D47A1 · fundo #071019</p></div>`}
+function wireView(){document.querySelectorAll('[data-action]').forEach(b=>b.onclick=()=>action(b.dataset.action,b.dataset.id));document.querySelectorAll('[data-page]').forEach(b=>{if(!b.closest('#nav'))b.onclick=()=>setPage(b.dataset.page)});let sl=document.querySelector('#searchLead'),sf=document.querySelector('#stageFilter');if(sl)sl.oninput=filterLeads;if(sf)sf.onchange=filterLeads;let sp=document.querySelector('#searchPlate'),ps=document.querySelector('#plateStatus');if(sp)sp.oninput=filterPlates;if(ps)ps.onchange=filterPlates;let se=document.querySelector('#settingsExport');if(se)se.onclick=exportData;let si=document.querySelector('#settingsImport'),fi=document.querySelector('#importFile');if(si)si.onclick=()=>fi.click();if(fi)fi.onchange=importData}
+function filterLeads(){let q=(document.querySelector('#searchLead').value||'').toLowerCase(),st=document.querySelector('#stageFilter').value;document.querySelector('#leadsTable').innerHTML=leadTable(db.leads.filter(l=>(`${l.name} ${l.phone} ${l.address} ${l.segment}`.toLowerCase().includes(q))&&(!st||l.stage===st)));wireView()}
+function filterPlates(){let q=(document.querySelector('#searchPlate').value||'').toLowerCase(),st=document.querySelector('#plateStatus').value;document.querySelector('#platesTable').innerHTML=plateTable(db.plates.filter(p=>(`${p.code} ${leadName(p.leadId)} ${p.destination}`.toLowerCase().includes(q))&&(!st||p.status===st)));wireView()}
+function openCreateForPage(){if(page==='leads'||page==='dashboard')openModal('lead');else if(page==='plates')openModal('plate');else if(page==='sales')openModal('sale');else setPage('leads')}
+function field(name,label,type='text',opts=[],full=false,required=false,value=''){let input='';if(type==='select')input=`<select name="${name}" ${required?'required':''}>${opts.map(o=>`<option value="${esc(o)}" ${o===value?'selected':''}>${esc(o)}</option>`).join('')}</select>`;else if(type==='textarea')input=`<textarea name="${name}" rows="3">${esc(value)}</textarea>`;else input=`<input name="${name}" type="${type}" value="${esc(value)}" ${required?'required':''} ${type==='number'?'step="0.01" min="0"':''}>`;return `<label class="${full?'full':''}">${label}${input}</label>`}
+function openModal(type,record=null,extra={}){modalType=type;editingId=record?.id||null;let title='',fields='';const val=k=>record?.[k]??extra[k]??'';
+ if(type==='lead'){title=record?'Editar cliente':'Cadastrar cliente';fields=field('name','Nome do estabelecimento','text',[],false,true,val('name'))+field('contact','Nome do responsável','text',[],false,false,val('contact'))+field('phone','Telefone / WhatsApp','tel',[],false,false,val('phone'))+field('email','E-mail','email',[],false,false,val('email'))+field('segment','Segmento','select',['Barbearia','Salão de beleza','Restaurante / pizzaria','Pet shop / veterinária','Clínica','Oficina','Academia','Hotel / pousada','Outro'],false,false,val('segment')||'Outro')+field('neighborhood','Bairro','text',[],false,false,val('neighborhood'))+field('address','Endereço','text',[],true,false,val('address'))+field('stage','Etapa comercial','select',['Novo lead','Contato realizado','Proposta enviada','Em negociação','Ganho','Perdido'],false,false,val('stage')||'Novo lead')+field('nextContact','Próximo contato','date',[],false,false,val('nextContact'))+field('googleUrl','Link do perfil / avaliações Google','url',[],true,false,val('googleUrl'))+field('notes','Observações','textarea',[],true,false,val('notes'))}
+ if(type==='plate'){title=record?'Editar placa':'Cadastrar placa';fields=field('code','Código único da placa','text',[],false,true,val('code')||id('PLQ'))+field('leadId','Estabelecimento','select',db.leads.map(l=>l.id+'|'+l.name),false,true,val('leadId')?val('leadId')+'|'+leadName(val('leadId')):'')+field('kind','Tipo','select',['NFC + QR Code','Somente QR Code','Somente NFC'],false,false,val('kind')||'NFC + QR Code')+field('permanentUrl','Link permanente da placa (seu domínio)','url',[],true,false,val('permanentUrl'))+field('destination','Destino atual','url',[],true,false,val('destination'))+field('status','Status','select',['Em produção','Ativa','Inativa'],false,false,val('status')||'Em produção')+field('soldDate','Data da venda','date',[],false,false,val('soldDate')||today())+field('notes','Observações','textarea',[],true,false,val('notes'))}
+ if(type==='destination'){title='Editar destino da placa';fields=`<div class="full hint">O QR Code e a etiqueta NFC precisam apontar para o link permanente. Aqui você altera somente o destino final.</div>`+field('destination','Novo destino (URL)','url',[],true,true,val('destination'))+field('changeNote','Motivo da alteração','text',[],true,false,'')}
+ if(type==='sale'){title=record?'Editar venda':'Registrar venda';fields=field('leadId','Cliente','select',db.leads.map(l=>l.id+'|'+l.name),false,true,val('leadId')?val('leadId')+'|'+leadName(val('leadId')):'')+field('plateId','Placa','select',db.plates.map(p=>p.id+'|'+p.code+' — '+leadName(p.leadId)),false,false,val('plateId')?val('plateId')+'|'+(db.plates.find(p=>p.id===val('plateId'))?.code||'')+' — '+leadName(val('leadId')):'')+field('date','Data da venda','date',[],false,true,val('date')||today())+field('amount','Valor de venda (R$)','number',[],false,true,val('amount'))+field('cost','Custo total (R$)','number',[],false,true,val('cost'))+field('payment','Pagamento','select',['Pendente','Parcial','Pago','Cancelada'],false,false,val('payment')||'Pendente')+field('method','Forma de pagamento','select',['Pix','Dinheiro','Cartão de débito','Cartão de crédito','Transferência','Outro'],false,false,val('method')||'Pix')+field('notes','Observações','textarea',[],true,false,val('notes'))}
+ if(type==='edit-sale')return openModal('sale',record);
+ document.querySelector('#modalTitle').textContent=title;document.querySelector('#modalFields').innerHTML=fields;document.querySelector('#modalBack').style.display='flex';
+ document.querySelectorAll('#modalFields select').forEach(sel=>{[...sel.options].forEach(o=>{if(o.value.includes('|')){let parts=o.value.split('|');o.textContent=parts.slice(1).join('|');o.value=parts[0]}});if(sel.name==='leadId'&&record?.leadId)sel.value=record.leadId;if(sel.name==='plateId'&&record?.plateId)sel.value=record.plateId});
+}
+function closeModal(){document.querySelector('#modalBack').style.display='none';document.querySelector('#modalForm').reset();editingId=null}
+document.querySelector('#cancelModal').onclick=closeModal;document.querySelector('#modalBack').addEventListener('click',e=>{if(e.target.id==='modalBack')closeModal()});
+
+async function logCloud(action, detail){
+  if(supabaseClient){
+    try{ await supabaseClient.from('activity_history').insert({ action, detail }); }catch(e){}
+  } else {
+    log(action, detail);
+  }
+}
+
+document.querySelector('#modalForm').onsubmit = async e => {
+  e.preventDefault();
+  const submitBtn = e.target.querySelector('button[type="submit"]');
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'Salvando...';
+
+  const data = Object.fromEntries(new FormData(e.target).entries());
+  if(data.leadId) data.leadId = data.leadId;
+  if(data.plateId) data.plateId = data.plateId;
+
+  try {
+    if(supabaseClient){
+      // Gravação Direta no Supabase (Nuvem)
+      if(modalType === 'lead'){
+        const payload = {
+          name: data.name,
+          contact_name: data.contact || null,
+          phone: data.phone || null,
+          email: data.email || null,
+          segment: data.segment || null,
+          neighborhood: data.neighborhood || null,
+          address: data.address || null,
+          stage: data.stage || 'Novo lead',
+          next_contact: data.nextContact || null,
+          google_url: data.googleUrl || null,
+          notes: data.notes || null
+        };
+        if(editingId){
+          await supabaseClient.from('leads').update(payload).eq('id', editingId);
+          await logCloud('Cliente atualizado', data.name);
+        } else {
+          await supabaseClient.from('leads').insert(payload);
+          await logCloud('Cliente cadastrado', data.name);
+        }
+      }
+
+      if(modalType === 'plate'){
+        const slug = (data.code || '').toLowerCase().replace(/[^a-z0-9]/g, '-');
+        const payload = {
+          code: data.code,
+          lead_id: data.leadId,
+          kind: data.kind || 'NFC + QR Code',
+          permanent_url: data.permanentUrl || null,
+          destination_url: data.destination || null,
+          status: data.status || 'Em produção',
+          sold_date: data.soldDate || null,
+          notes: data.notes || null
+        };
+        if(editingId){
+          await supabaseClient.from('plates').update(payload).eq('id', editingId);
+          await logCloud('Placa atualizada', data.code + ' · ' + leadName(data.leadId));
+        } else {
+          payload.permanent_slug = slug;
+          await supabaseClient.from('plates').insert(payload);
+          await logCloud('Placa cadastrada', data.code + ' · ' + leadName(data.leadId));
+        }
+      }
+
+      if(modalType === 'destination'){
+        const plate = db.plates.find(x => x.id === editingId);
+        await supabaseClient.from('plates').update({ destination_url: data.destination }).eq('id', editingId);
+        await supabaseClient.from('plate_destination_history').insert({
+          plate_id: editingId,
+          plate_code: plate ? plate.code : null,
+          old_destination_url: plate ? plate.destination : null,
+          new_destination_url: data.destination,
+          change_note: data.changeNote || null
+        });
+        await logCloud('Destino da placa alterado', (plate ? plate.code : '') + ' → ' + data.destination + (data.changeNote ? ' · ' + data.changeNote : ''));
+      }
+
+      if(modalType === 'sale'){
+        const payload = {
+          lead_id: data.leadId,
+          plate_id: data.plateId || null,
+          sale_date: data.date || today(),
+          amount: Number(data.amount) || 0,
+          cost: Number(data.cost) || 0,
+          payment_status: data.payment || 'Pendente',
+          payment_method: data.method || 'Pix',
+          notes: data.notes || null
+        };
+        if(editingId){
+          await supabaseClient.from('sales').update(payload).eq('id', editingId);
+          await logCloud('Venda atualizada', leadName(data.leadId) + ' · ' + money(data.amount));
+        } else {
+          await supabaseClient.from('sales').insert(payload);
+          await logCloud('Venda registrada', leadName(data.leadId) + ' · ' + money(data.amount));
+        }
+
+        // Automação: se venda paga, ativa placa e ganha lead
+        if(data.payment === 'Pago'){
+          if(data.plateId){
+            await supabaseClient.from('plates').update({ status: 'Ativa' }).eq('id', data.plateId);
+          }
+          if(data.leadId){
+            await supabaseClient.from('leads').update({ stage: 'Ganho' }).eq('id', data.leadId);
+          }
+        }
+      }
+
+      closeModal();
+      await loadCloudData();
+    } else {
+      // Fallback para modo local
+      if(modalType==='lead'){let rec={...data,id:editingId||id('CLI'),createdAt:editingId?(db.leads.find(x=>x.id===editingId)?.createdAt||today()):today()};if(editingId)db.leads=db.leads.map(x=>x.id===editingId?rec:x);else db.leads.unshift(rec);log(editingId?'Cliente atualizado':'Cliente cadastrado',rec.name)}
+      if(modalType==='plate'){let existing=db.plates.find(x=>x.id===editingId);let rec={...data,id:editingId||id('PLACA'),destination:data.destination||'',createdAt:existing?.createdAt||today()};if(editingId)db.plates=db.plates.map(x=>x.id===editingId?rec:x);else db.plates.unshift(rec);log(editingId?'Placa atualizada':'Placa cadastrada',rec.code+' · '+leadName(rec.leadId))}
+      if(modalType==='destination'){let p=db.plates.find(x=>x.id===editingId);if(p){p.destination=data.destination;log('Destino da placa alterado',p.code+' → '+data.destination+(data.changeNote?' · '+data.changeNote:''))}}
+      if(modalType==='sale'){let rec={...data,id:editingId||id('VENDA')};if(editingId)db.sales=db.sales.map(x=>x.id===editingId?rec:x);else db.sales.unshift(rec);let p=db.plates.find(x=>x.id===rec.plateId);if(p&&rec.payment==='Pago')p.status='Ativa';let l=db.leads.find(x=>x.id===rec.leadId);if(l&&l.stage!=='Perdido')l.stage='Ganho';log(editingId?'Venda atualizada':'Venda registrada',leadName(rec.leadId)+' · '+money(rec.amount))}
+      saveDB();closeModal();render();
+    }
+    toast('Cadastro salvo.');
+  } catch(err) {
+    console.error('Erro ao salvar:', err);
+    toast('Erro ao salvar no banco. Verifique o console.');
+  } finally {
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'Salvar cadastro';
+  }
+};
+async function action(a,recordId){let r;
+ if(a==='add-lead')return openModal('lead');
+ if(a==='add-plate'){if(!db.leads.length){toast('Cadastre um cliente antes de cadastrar a placa.');setPage('leads');return}return openModal('plate')}
+ if(a==='add-sale'){if(!db.leads.length){toast('Cadastre um cliente antes da venda.');setPage('leads');return}return openModal('sale')}
+ if(a==='edit-lead'){r=db.leads.find(x=>x.id===recordId);return openModal('lead',r)}
+ if(a==='edit-plate'){r=db.plates.find(x=>x.id===recordId);return openModal('plate',r)}
+ if(a==='edit-destination'){r=db.plates.find(x=>x.id===recordId);return openModal('destination',r)}
+ if(a==='sale-from-lead'){r=db.leads.find(x=>x.id===recordId);return openModal('sale',null,{leadId:r.id})}
+ if(a==='edit-sale'){r=db.sales.find(x=>x.id===recordId);return openModal('sale',r)}
+
+ if(a==='delete-lead'){
+   const lead = db.leads.find(x => x.id === recordId);
+   const name = lead ? lead.name : 'este cliente';
+   if(!confirm(`Tem certeza que deseja excluir o cliente "${name}"?`)){
+     return;
+   }
+   if(supabaseClient){
+     const { error } = await supabaseClient.from('leads').delete().eq('id', recordId);
+     if(error){
+       if(error.code === '23503' || (error.message && error.message.includes('violates foreign key'))){
+         alert('Não é possível excluir este cliente porque ele já possui placas ou vendas vinculadas no banco de dados.\n\nPara retirá-lo dos relatórios ativos, você pode alterar a etapa comercial para "Perdido".');
+       } else {
+         alert('Erro ao excluir cliente: ' + error.message);
+       }
+       return;
+     }
+     await logCloud('Cliente excluído', name);
+     await loadCloudData();
+   } else {
+     db.leads = db.leads.filter(x => x.id !== recordId);
+     log('Cliente excluído', name);
+     saveDB();
+     render();
+   }
+   toast('Cliente excluído com sucesso.');
+ }
+
+ if(a==='delete-plate'){
+   const plate = db.plates.find(x => x.id === recordId);
+   const code = plate ? plate.code : 'esta placa';
+   if(!confirm(`Deseja desativar a placa "${code}"? O histórico de auditoria será mantido e o redirecionamento será desativado.`)){
+     return;
+   }
+   if(supabaseClient){
+     const { error } = await supabaseClient.from('plates').update({ deleted_at: new Date().toISOString(), status: 'Inativa' }).eq('id', recordId);
+     if(error){
+       alert('Erro ao desativar placa: ' + error.message);
+       return;
+     }
+     await logCloud('Placa desativada', code);
+     await loadCloudData();
+   } else {
+     db.plates = db.plates.filter(x => x.id !== recordId);
+     log('Placa desativada', code);
+     saveDB();
+     render();
+   }
+   toast('Placa desativada.');
+ }
+
+ if(a==='delete-sale'){
+   if(!confirm('Deseja excluir este registro de venda?')){
+     return;
+   }
+   if(supabaseClient){
+     const { error } = await supabaseClient.from('sales').delete().eq('id', recordId);
+     if(error){
+       alert('Erro ao excluir venda: ' + error.message);
+       return;
+     }
+     await logCloud('Venda excluída', recordId);
+     await loadCloudData();
+   } else {
+     db.sales = db.sales.filter(x => x.id !== recordId);
+     saveDB();
+     render();
+   }
+   toast('Venda excluída.');
+ }
+
+ if(a==='clear-history'){
+   if(confirm('Limpar todo o histórico de atividades?')){
+     if(supabaseClient){
+       await supabaseClient.from('activity_history').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+       await loadCloudData();
+     } else {
+       db.history=[];
+       saveDB();
+       render();
+     }
+     toast('Histórico limpo.');
+   }
+ }
+}
+function exportData(){let blob=new Blob([JSON.stringify(db,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='bitdev-crm-backup-'+today()+'.json';a.click();URL.revokeObjectURL(a.href);toast('Backup exportado.')}
+function importData(e){let f=e.target.files[0];if(!f)return;let rd=new FileReader();rd.onload=()=>{try{let obj=JSON.parse(rd.result);if(!obj.leads||!obj.plates||!obj.sales)throw Error('Formato inválido');if(confirm('Importar backup e substituir os dados atuais deste navegador?')){db={...blank(),...obj};saveDB();render();toast('Backup importado.')}}catch{toast('Não foi possível importar. Verifique o arquivo.')}};rd.readAsText(f)}
+
+// Inicia checagem de sessão ao carregar a página
+checkAuthSession();
+</script>
+</body>
+</html>

@@ -1,0 +1,6 @@
+{
+  "rewrites": [
+    { "source": "/go/:slug", "destination": "/go.html?p=:slug" },
+    { "source": "/r/:slug", "destination": "/go.html?p=:slug" }
+  ]
+}

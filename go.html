@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BitDev | Redirecionamento de Placa</title>
+<script src="config.js"></script>
+<style>
+:root{--bg:#071019;--panel:#0e1b29;--text:#edf5fb;--muted:#9aafc2;--blue:#00bfff;--line:#20364b;--warn:#ffc857;--bad:#ff7474}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:Inter,system-ui,-apple-system,sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;text-align:center}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:36px 28px;max-width:440px;width:100%;box-shadow:0 20px 50px #0008}
+.logo{display:inline-grid;place-items:center;width:56px;height:56px;border-radius:16px;background:var(--blue);color:#03121b;font-weight:900;font-size:24px;margin-bottom:20px}
+h1{font-size:20px;margin-bottom:8px}
+p{color:var(--muted);font-size:14px;line-height:1.5;margin-bottom:20px}
+.spinner{width:36px;height:36px;border:3px solid #1a3a54;border-top-color:var(--blue);border-radius:50%;margin:20px auto;animation:spin 0.8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.pill{display:inline-block;padding:6px 14px;border-radius:99px;font-size:12px;font-weight:600;margin-bottom:14px}
+.pill.warn{background:#3a2c16;color:var(--warn);border:1px solid #5a4422}
+.pill.bad{background:#3a181d;color:var(--bad);border:1px solid #5a272e}
+a.btn{display:inline-block;background:var(--blue);color:#04111b;text-decoration:none;font-weight:700;padding:12px 22px;border-radius:10px;font-size:14px;transition:opacity .2s}
+a.btn:hover{opacity:0.9}
+.brand-footer{margin-top:24px;padding-top:16px;border-top:1px solid var(--line);font-size:12px;color:var(--muted)}
+.hidden{display:none!important}
+@media (max-width: 480px){
+  body{padding:14px}
+  .card{padding:26px 18px;border-radius:18px}
+  h1{font-size:19px}
+  p{font-size:13px}
+  a.btn{width:100%;padding:14px;display:block}
+}
+</style>
+</head>
+<body>
+
+<div class="card" id="card">
+  <div class="logo">B</div>
+
+  <!-- Estado 1: Carregando e Redirecionando -->
+  <div id="stateLoading">
+    <div class="spinner"></div>
+    <h1>Conectando...</h1>
+    <p>Aguarde enquanto direcionamos você ao destino configurado.</p>
+  </div>
+
+  <!-- Estado 2: Placa Inativa ou Em Produção -->
+  <div id="stateInactive" class="hidden">
+    <span class="pill warn">Placa em Ativação</span>
+    <h1>Placa ainda não ativada</h1>
+    <p>Esta placa física NFC / QR Code já foi registrada, mas ainda está em processo de configuração pelo estabelecimento.</p>
+  </div>
+
+  <!-- Estado 3: Placa Não Encontrada -->
+  <div id="stateNotFound" class="hidden">
+    <span class="pill bad">Não Encontrada</span>
+    <h1>Placa não cadastrada</h1>
+    <p>O link permanente escaneado não foi localizado em nossa base de dados.</p>
+  </div>
+
+  <!-- Estado 4: Link Inválido ou Parâmetro Ausente -->
+  <div id="stateInvalid" class="hidden">
+    <span class="pill bad">Link Indisponível</span>
+    <h1>Destino em manutenção</h1>
+    <p id="invalidMsg">O link de destino configurado para esta placa está temporariamente indisponível.</p>
+  </div>
+
+  <!-- Link de fallback para caso o redirecionamento automático seja bloqueado -->
+  <div id="stateRedirecting" class="hidden">
+    <h1>Redirecionando...</h1>
+    <p>Se você não for redirecionado em instantes, clique no botão abaixo:</p>
+    <a href="#" id="directLink" class="btn" rel="noopener">Acessar Destino</a>
+  </div>
+
+  <div class="brand-footer">
+    BitDev · Tecnologia em Placas NFC & QR Code
+  </div>
+</div>
+
+<script>
+// Higienização de URL Supabase
+function cleanUrl(u){
+  return (u||'').trim().replace(/\/rest\/v1\/?$/i, '').replace(/\/+$/, '');
+}
+
+// Obtém o slug da placa a partir da URL
+function getSlug(){
+  const params = new URLSearchParams(window.location.search);
+  // Aceita ?p=slug, ?slug=slug ou ?code=slug
+  const slugFromParam = params.get('p') || params.get('slug') || params.get('code');
+  if(slugFromParam) return slugFromParam.trim();
+
+  // Se a rota foi reescrita (ex: /go/barbearia-silva)
+  const parts = window.location.pathname.split('/').filter(Boolean);
+  if(parts.length > 1 && (parts[0] === 'go' || parts[0] === 'r')){
+    return parts[1].trim();
+  }
+  return null;
+}
+
+function showState(id){
+  ['stateLoading', 'stateInactive', 'stateNotFound', 'stateInvalid', 'stateRedirecting'].forEach(s => {
+    const el = document.getElementById(s);
+    if(el) el.classList.toggle('hidden', s !== id);
+  });
+}
+
+async function resolveRedirect(){
+  const slug = getSlug();
+
+  if(!slug){
+    document.getElementById('invalidMsg').textContent = 'Nenhum identificador de placa foi informado na leitura.';
+    showState('stateInvalid');
+    return;
+  }
+
+  // Validação de credenciais do config.js
+  if(typeof SUPABASE_CONFIG === 'undefined' || !SUPABASE_CONFIG.url || SUPABASE_CONFIG.url.includes('SUA_SUPABASE_URL')){
+    document.getElementById('invalidMsg').textContent = 'Configuração do Supabase ausente em config.js.';
+    showState('stateInvalid');
+    return;
+  }
+
+  const supabaseUrl = cleanUrl(SUPABASE_CONFIG.url);
+  const anonKey = SUPABASE_CONFIG.anonKey;
+
+  try {
+    // Chamada direta via fetch nativo ultraleve (< 2KB de overhead)
+    const response = await fetch(`${supabaseUrl}/rest/v1/rpc/resolve_plate_redirect`, {
+      method: 'POST',
+      headers: {
+        'apikey': anonKey,
+        'Authorization': `Bearer ${anonKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ p_slug: slug })
+    });
+
+    if(!response.ok){
+      throw new Error(`HTTP ${response.status}`);
+    }
+
+    const data = await response.json();
+    const result = (Array.isArray(data) && data.length) ? data[0] : null;
+
+    if(!result || result.status === 'Nao encontrada'){
+      showState('stateNotFound');
+      return;
+    }
+
+    if(result.status !== 'Ativa' || !result.destination_url){
+      showState('stateInactive');
+      return;
+    }
+
+    if(result.status === 'Destino invalido'){
+      showState('stateInvalid');
+      return;
+    }
+
+    // Sucesso: Redirecionamento Imediato
+    const targetUrl = result.destination_url;
+    document.getElementById('directLink').href = targetUrl;
+    showState('stateRedirecting');
+
+    // Executa substituição imediata no histórico do navegador
+    window.location.replace(targetUrl);
+
+  } catch(err) {
+    console.error('Erro ao resolver redirecionamento:', err);
+    document.getElementById('invalidMsg').textContent = 'Não foi possível conectar ao servidor de redirecionamento.';
+    showState('stateInvalid');
+  }
+}
+
+resolveRedirect();
+</script>
+</body>
+</html>
